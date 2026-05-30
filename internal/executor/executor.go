@@ -183,7 +183,7 @@ func (e *Executor) outputPathFor(l course.Lesson) string {
 
 // prepareWorkdir creates the isolated session dir and writes PROMPT.md.
 func (e *Executor) prepareWorkdir(run *state.Run, l course.Lesson, promptText string) string {
-	dir := filepath.Join(e.cfg.RunsPath(), run.ID, run.Task, l.Unit())
+	dir := filepath.Join(e.cfg.RunsPath(), run.ID, run.Operation, l.Unit())
 	_ = os.MkdirAll(dir, 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "PROMPT.md"), []byte(promptText), 0o644)
 	return dir

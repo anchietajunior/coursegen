@@ -35,10 +35,10 @@ type Execution struct {
 	Issues     []string `json:"issues,omitempty"`
 }
 
-// Run groups the executions of a single `tasks run` invocation.
+// Run groups the executions of a single generate invocation.
 type Run struct {
 	ID         string       `json:"id"`
-	Task       string       `json:"task"`
+	Operation  string       `json:"operation"` // ex.: "generate-lessons" (a operação, não a lesson)
 	Runner     string       `json:"runner"`
 	Cmd        string       `json:"cmd"`
 	Status     string       `json:"status"` // running|ok|partial|failed
@@ -90,9 +90,9 @@ func (s *Store) Save() error {
 }
 
 // CreateRun prepends a new running run.
-func (s *Store) CreateRun(task, runner, cmd string, total int, version string) *Run {
+func (s *Store) CreateRun(operation, runner, cmd string, total int, version string) *Run {
 	run := &Run{
-		ID: generateID(), Task: task, Runner: runner, Cmd: cmd,
+		ID: generateID(), Operation: operation, Runner: runner, Cmd: cmd,
 		Status: "running", Total: total, Version: version,
 		StartedAt: time.Now().Format(time.RFC3339), Executions: []*Execution{},
 	}

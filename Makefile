@@ -5,9 +5,21 @@ VERSION := $(shell sed -n 's/.*Version = "\(.*\)"/\1/p' internal/cli/cli.go)
 # Plataformas para release (binário único por OS/arch).
 PLATFORMS := darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: build install vet test fmt clean release run
+.PHONY: build install vet test fmt clean release run sync-skills
 
-build: ## Compila o binário em ./bin/coursegen
+# Copia as skills (fonte da verdade em skills/*.md) para o local embarcável.
+# Necessário antes do build; o resultado é commitado para que `go install` funcione.
+sync-skills:
+	@rm -rf internal/assets/skills
+	@for f in skills/*.md; do \
+		name=$$(basename "$$f" .md); \
+		[ "$$name" = "README" ] && continue; \
+		mkdir -p internal/assets/skills/$$name; \
+		cp "$$f" internal/assets/skills/$$name/SKILL.md; \
+	done
+	@echo "→ skills sincronizadas para internal/assets/skills/"
+
+build: sync-skills ## Compila o binário em ./bin/coursegen
 	@mkdir -p bin
 	go build -o bin/$(BINARY) $(PKG)
 	@echo "→ bin/$(BINARY) ($(VERSION))"
@@ -30,7 +42,7 @@ clean:
 run: build ## Ex.: make run ARGS="tasks run generate-lessons --runner mock"
 	./bin/$(BINARY) $(ARGS)
 
-release: ## Cross-compila binários estáticos para todas as plataformas em ./dist
+release: sync-skills ## Cross-compila binários estáticos para todas as plataformas em ./dist
 	@mkdir -p dist
 	@for p in $(PLATFORMS); do \
 		os=$${p%/*}; arch=$${p#*/}; \

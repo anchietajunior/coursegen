@@ -1,0 +1,44 @@
+# goreleaser — binários únicos por plataforma + publicação no tap Homebrew.
+# Uso: `goreleaser release --clean` (em CI, num tag vX.Y.Z).
+version: 2
+
+before:
+  hooks:
+    # Garante que as skills embarcadas estão sincronizadas antes de compilar.
+    - make sync-skills
+
+builds:
+  - id: coursegen
+    main: ./cmd/coursegen
+    binary: coursegen
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: coursegen
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+# Publica a formula automaticamente no tap a cada release.
+brews:
+  - name: coursegen
+    repository:
+      owner: coursegen
+      name: homebrew-tap
+    homepage: "https://github.com/coursegen/coursegen"
+    description: "Orquestra a produção de aulas de cursos com agentes de IA"
+    license: "MIT"
+    caveats: |
+      Rode `coursegen setup` para instalar as skills de planejamento no seu
+      agente e escolher o agente padrão.
+    test: |
+      assert_match "coursegen", shell_output("#{bin}/coursegen version")

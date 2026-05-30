@@ -1,5 +1,10 @@
 // Package cli is the command dispatch layer (stdlib flag only — no external CLI
 // framework, so the binary stays minimal and offline-buildable).
+//
+// The surface is verb-first on purpose: you GENERATE lessons / REVIEW lessons.
+// "lesson" is the artifact; the verb is the operation. There is deliberately no
+// generic "task" noun in what the user types, to avoid confusing the operation
+// with the content it produces.
 package cli
 
 import (
@@ -32,17 +37,25 @@ func Run(args []string) int {
 	switch args[0] {
 	case "init":
 		return cmdInit(args[1:])
+	case "setup":
+		return cmdSetup(args[1:])
 	case "doctor":
 		return cmdDoctor()
 	case "version", "--version", "-v":
 		fmt.Println("coursegen " + Version)
 		return 0
-	case "status":
-		return cmdStatus()
 	case "readiness":
 		return cmdReadiness(args[1:])
-	case "tasks":
-		return cmdTasks(args[1:])
+	case "generate", "gen":
+		return cmdGenerate(args[1:])
+	case "review":
+		return cmdReview(args[1:])
+	case "status":
+		return cmdStatus()
+	case "retry":
+		return cmdRetry(args[1:])
+	case "list":
+		return cmdList()
 	case "runs":
 		return cmdRuns(args[1:])
 	case "help", "-h", "--help":
@@ -194,50 +207,43 @@ func cmdReadiness(args []string) int {
 	return 1
 }
 
-// --- tasks ------------------------------------------------------------------
+// --- generate / review ------------------------------------------------------
 
-func cmdTasks(args []string) int {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "uso: coursegen tasks <list|run|status|retry>")
+func cmdGenerate(args []string) int {
+	kind, rest := splitKind(args)
+	switch kind {
+	case "lessons":
+		return runGenerateLessons(rest)
+	case "":
+		fmt.Fprintln(os.Stderr, "uso: coursegen generate <lessons|exercises|slides|projects>")
 		return 1
-	}
-	switch args[0] {
-	case "list":
-		return tasksList()
-	case "run":
-		return tasksRun(args[1:])
-	case "status":
-		return cmdStatus()
-	case "retry":
-		return tasksRetry(args[1:])
+	case "exercises", "slides", "projects":
+		fmt.Fprintf(os.Stderr, "✗ `generate %s` é roadmap (v0.3) e ainda não foi implementado.\n", kind)
+		return 1
 	default:
-		fmt.Fprintf(os.Stderr, "subcomando de tasks desconhecido: %s\n", args[0])
+		fmt.Fprintf(os.Stderr, "✗ alvo desconhecido para generate: '%s'.\n", kind)
 		return 1
 	}
 }
 
-func tasksList() int {
-	rows := [][]string{
-		{"generate-lessons", "lesson", "sim", "Gera a aula completa a partir da lesson spec"},
-		{"generate-exercises", "lesson", "sim", "Gera exercícios da aula (roadmap v0.3)"},
-		{"review-lessons", "lesson", "não", "Revisa as aulas geradas (roadmap v0.3)"},
-		{"generate-slides", "lesson", "sim", "Gera o deck de slides da aula (roadmap v0.3)"},
+func cmdReview(args []string) int {
+	kind, _ := splitKind(args)
+	switch kind {
+	case "lessons":
+		fmt.Fprintln(os.Stderr, "✗ `review lessons` é roadmap (v0.3) e ainda não foi implementado.")
+		return 1
+	case "":
+		fmt.Fprintln(os.Stderr, "uso: coursegen review <lessons>")
+		return 1
+	default:
+		fmt.Fprintf(os.Stderr, "✗ alvo desconhecido para review: '%s'.\n", kind)
+		return 1
 	}
-	fmt.Printf("%-18s %-8s %-10s %s\n", "TASK", "UNIDADE", "READINESS", "DESCRIÇÃO")
-	for _, r := range rows {
-		fmt.Printf("%-18s %-8s %-10s %s\n", r[0], r[1], r[2], r[3])
-	}
-	return 0
 }
 
-func tasksRun(args []string) int {
-	var task string
-	rest := args
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		task, rest = args[0], args[1:]
-	}
-
-	fs := flag.NewFlagSet("run", flag.ContinueOnError)
+// runGenerateLessons is the sequential production loop entrypoint.
+func runGenerateLessons(rest []string) int {
+	fs := flag.NewFlagSet("generate lessons", flag.ContinueOnError)
 	rnr := fs.String("runner", "", "Runner a usar (claude, codex, mock, ...)")
 	parallel := fs.Int("parallel", 1, "MVP roda sempre sequencial")
 	lesson := fs.String("lesson", "", "Filtra uma aula (ex.: lesson-01-01 ou 01-01)")
@@ -247,11 +253,6 @@ func tasksRun(args []string) int {
 	skipReadiness := fs.Bool("skip-readiness", false, "Ignora o gate (escape hatch)")
 	dryRun := fs.Bool("dry-run", false, "Planeja sem executar")
 	if err := fs.Parse(rest); err != nil {
-		return 1
-	}
-
-	if task != "generate-lessons" {
-		fmt.Fprintf(os.Stderr, "✗ task '%s' ainda não implementada no MVP. Disponível: generate-lessons.\n", task)
 		return 1
 	}
 
@@ -285,8 +286,8 @@ func tasksRun(args []string) int {
 		return printPlan(p, lessons, r)
 	}
 
-	run := p.store.CreateRun("generate-lessons", r.Name(),
-		"coursegen tasks run generate-lessons", len(lessons), Version)
+	run := p.store.CreateRun(operationGenerateLessons, r.Name(),
+		"coursegen generate lessons", len(lessons), Version)
 	if err := p.store.Save(); err != nil {
 		return fail(err)
 	}
@@ -303,14 +304,15 @@ func tasksRun(args []string) int {
 	return 0
 }
 
-func tasksRetry(args []string) int {
-	which := "failed"
-	rest := args
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		which, rest = args[0], args[1:]
+// --- retry ------------------------------------------------------------------
+
+func cmdRetry(args []string) int {
+	which, rest := splitKind(args)
+	if which == "" {
+		which = "failed"
 	}
 	if which != "failed" {
-		fmt.Fprintln(os.Stderr, "uso: coursegen tasks retry failed")
+		fmt.Fprintln(os.Stderr, "uso: coursegen retry failed")
 		return 1
 	}
 
@@ -363,6 +365,22 @@ func tasksRetry(args []string) int {
 	return 0
 }
 
+// --- list (generators) ------------------------------------------------------
+
+func cmdList() int {
+	rows := [][]string{
+		{"generate lessons", "lesson", "sim", "Gera a aula completa a partir da lesson spec"},
+		{"generate exercises", "lesson", "sim", "Gera exercícios da aula (roadmap v0.3)"},
+		{"generate slides", "lesson", "sim", "Gera o deck de slides da aula (roadmap v0.3)"},
+		{"review lessons", "lesson", "não", "Revisa as aulas geradas (roadmap v0.3)"},
+	}
+	fmt.Printf("%-20s %-8s %-10s %s\n", "COMANDO", "UNIDADE", "READINESS", "DESCRIÇÃO")
+	for _, r := range rows {
+		fmt.Printf("%-20s %-8s %-10s %s\n", r[0], r[1], r[2], r[3])
+	}
+	return 0
+}
+
 // --- runs -------------------------------------------------------------------
 
 func cmdRuns(args []string) int {
@@ -399,6 +417,20 @@ func cmdRuns(args []string) int {
 }
 
 // --- helpers ----------------------------------------------------------------
+
+// operationGenerateLessons is the internal slug for the lesson generation
+// operation (used in state and run workdirs). It is an OPERATION identifier,
+// never a "lesson" — the two are distinct concepts.
+const operationGenerateLessons = "generate-lessons"
+
+// splitKind pulls the leading non-flag positional (the target, e.g. "lessons")
+// off args, returning it plus the remaining flag args.
+func splitKind(args []string) (kind string, rest []string) {
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		return args[0], args[1:]
+	}
+	return "", args
+}
 
 func gate(p *project, required bool) int {
 	r := course.CheckReadiness(p.cfg)
@@ -491,19 +523,24 @@ Uso:
   coursegen <comando> [opções]
 
 Comandos:
-  init                          Inicializa o projeto no diretório atual
-  readiness check               Verifica se o curso está APROVADO para produção
-  doctor                        Verifica disponibilidade dos runners
-  tasks list                    Lista as tasks disponíveis
-  tasks run generate-lessons    Gera as aulas (SEQUENCIAL, contexto limpo por aula)
-  tasks status                  Status da última execução
-  tasks retry failed            Reexecuta só as aulas que falharam
-  runs list                     Lista as runs
-  runs show RUN_ID              Detalhes de uma run
-  status                        Atalho para ` + "`tasks status`" + `
-  version                       Versão
+  init                       Inicializa o projeto no diretório atual
+  setup                      Instala as skills de planejamento no seu agente
+  readiness check            Verifica se o curso está APROVADO para produção
+  doctor                     Verifica disponibilidade dos runners
+  list                       Lista os geradores disponíveis
+  generate lessons           Gera as aulas (SEQUENCIAL, contexto limpo por aula)
+  review lessons             Revisa as aulas geradas (roadmap v0.3)
+  status                     Status da última execução
+  retry failed               Reexecuta só as aulas que falharam
+  runs list                  Lista as runs
+  runs show RUN_ID           Detalhes de uma run
+  version                    Versão
 
-Opções de ` + "`tasks run generate-lessons`" + `:
+Nota de vocabulário: você GERA/REVISA *lessons* (o artefato). O verbo é a
+operação; "lesson" é o conteúdo produzido — não há um conceito genérico de
+"task" na linha de comando.
+
+Opções de ` + "`generate lessons`" + `:
   --runner NAME     claude | codex | gemini | cursor | opencode | mock
   --lesson ID       Filtra uma aula (lesson-01-01)
   --module ID       Filtra um módulo (01)

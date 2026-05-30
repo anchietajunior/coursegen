@@ -288,6 +288,25 @@ coursegen/                                # este repositório
 
 ## 4. Comandos
 
+> **Atualização — superfície verbo-first.** A CLI implementada **não** expõe um
+> substantivo genérico `tasks`, para não confundir a *operação* com a *lesson*
+> (o artefato). O design original usava `coursegen tasks run <task>`; a forma
+> implementada é verbo-first. Mapa:
+>
+> | Design original | Implementado |
+> |---|---|
+> | `coursegen tasks run generate-lessons` | `coursegen generate lessons` |
+> | `coursegen tasks run review-lessons` | `coursegen review lessons` |
+> | `coursegen tasks run generate-slides` | `coursegen generate slides` |
+> | `coursegen tasks list` | `coursegen list` |
+> | `coursegen tasks status` | `coursegen status` |
+> | `coursegen tasks retry failed` | `coursegen retry failed` |
+>
+> Internamente, o identificador da operação (`generate-lessons`) é gravado no
+> estado como **`operation`** — nunca como "task" nem "lesson". Os exemplos
+> abaixo mantêm a forma `tasks run` por serem do design original; leia-os pelo
+> mapa acima.
+
 Árvore de comandos (Thor):
 
 ```

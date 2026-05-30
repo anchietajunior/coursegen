@@ -76,38 +76,32 @@ próximo. Rode-as **em ordem**:
 
 ### Instalando as skills
 
-As skills são arquivos Markdown **autossuficientes** — "instalar" é apenas
-torná-las disponíveis para o seu agente. Cada arquivo já traz o frontmatter
-`name` e `description` exigidos (campos extras como `reads`/`writes` são
-metadados do CourseGen e são ignorados pelo agente). Escolha uma forma:
-
-**Opção A — Claude Code (recomendado).** Cada skill vira uma pasta com um
-`SKILL.md`. Defina `DEST` como global (reutilizável entre cursos) ou por projeto
-(versionado junto com o curso) e rode:
+A forma recomendada é o comando **`coursegen setup`** (as skills vêm
+**embarcadas no binário**, então funciona logo após `brew install`):
 
 ```bash
-# Global (todos os cursos):
-DEST="$HOME/.claude/skills"
-# ...ou por projeto (dentro do repositório do curso):
-# DEST="./.claude/skills"
-
-for f in skills/*.md; do
-  name=$(basename "$f" .md)
-  [ "$name" = "README" ] && continue
-  mkdir -p "$DEST/$name"
-  cp "$f" "$DEST/$name/SKILL.md"
-done
+coursegen setup                 # escolhe o agente interativamente
+coursegen setup --agent claude  # ou direto, sem prompt
+coursegen setup --list          # lista as skills embarcadas
 ```
 
-Depois, invoque pelo nome no Claude Code, ex.: `/course-discovery`.
+O que ele faz, espelhando o padrão do Compozy:
 
-**Opção B — Qualquer outro agente (Codex, Gemini CLI, Cursor, OpenCode).** Não
-há um diretório padrão único entre as ferramentas. Use o item **14 (Prompt
-completo da skill)** de cada arquivo — ele é autossuficiente: copie o prompt e
-cole no agente, ou simplesmente aponte o agente para o arquivo `skills/<nome>.md`.
+1. **Pergunta qual agente você usa** (claude, codex, gemini, cursor, opencode) —
+   ou aceita `--agent`.
+2. Escreve as 7 skills no **store agnóstico** `~/.agents/skills/<nome>/SKILL.md`.
+3. **Symlinka** (ou `--copy`) para o diretório do agente — ex.: `~/.claude/skills/`
+   (Claude Code), `~/.cursor/skills-cursor/` (Cursor). Para agentes sem diretório
+   de skills conhecido, deixa no store agnóstico e indica como apontá-los.
+4. Registra a escolha em `~/.config/coursegen/state.yml`.
 
-**Opção C — Sem instalação.** Mantenha a pasta `skills/` no projeto do curso e
-peça ao agente para ler `skills/<nome>.md` no momento de usar.
+Depois, invoque pelo nome no agente, ex.: `/course-discovery`.
+
+> **Instalação manual (alternativa).** Como as skills são Markdown autossuficiente
+> (frontmatter `name`/`description`; campos extras são ignorados pelo agente),
+> dá para copiá-las à mão: `cp skills/<nome>.md $DEST/<nome>/SKILL.md`. Em agentes
+> sem conceito de "skill", use o item **14 (Prompt completo)** de cada arquivo —
+> ele é copiável e autossuficiente.
 
 **Como executar uma skill:** abra o agente no diretório do curso e carregue a
 skill. Cada arquivo em `skills/` tem, no item **14 (Prompt completo da skill)**,
@@ -133,7 +127,21 @@ escala a produção. Cada aula é gerada em **um agente separado, sequencialment
 (aula 1 → termina → contexto limpo → aula 2 …), com um **context pack mínimo**, e
 o status é exibido enquanto roda.
 
-### Rodando a CLI
+### Instalação
+
+```bash
+# Homebrew (quando o tap estiver publicado):
+brew install coursegen/tap/coursegen
+
+# Em seguida, escolha seu agente e instale as skills de planejamento:
+coursegen setup
+```
+
+`coursegen setup` (detalhado na [Parte 1](#instalando-as-skills)) pergunta qual
+agente você usa e copia as skills para o lugar certo — as skills vêm
+**embarcadas no binário**, então nada extra é baixado.
+
+### Rodando a CLI a partir do código
 
 O MVP está implementado em **Go** (`cmd/coursegen`, `internal/`) — compila para
 um **binário único, sem runtime**, fácil de distribuir. Requer Go 1.26+ apenas
@@ -157,13 +165,15 @@ make release          # cross-compila para darwin/linux/windows em ./dist (CGO o
 > Há um curso pronto em `examples/sample-course/` para experimentar:
 > ```bash
 > make build
-> cd examples/sample-course && ../../bin/coursegen tasks run generate-lessons --runner mock
+> cd examples/sample-course && ../../bin/coursegen generate lessons --runner mock
 > ```
 > Ou direto do código: `go run ./cmd/coursegen <comando>`.
 
 ### Comandos mínimos
 
-Os exemplos abaixo usam `coursegen` (assuma o binário no PATH; ou use
+A superfície é **verbo-first**: você *gera* / *revisa* **lessons** (o artefato).
+Não há um substantivo genérico "task" na linha de comando — o verbo é a operação,
+"lesson" é o conteúdo produzido. Os exemplos assumem o binário no PATH (ou use
 `./bin/coursegen` / `go run ./cmd/coursegen`):
 
 ```bash
@@ -173,31 +183,31 @@ coursegen init --name "Meu Curso" --runner claude
 # Confere o gate (precisa estar APROVADO)
 coursegen readiness check
 
-# Lista as tasks disponíveis
-coursegen tasks list
+# Lista os geradores disponíveis
+coursegen list
 
 # Verifica quais runners estão disponíveis no PATH
 coursegen doctor
 
 # (Opcional) Planeja sem executar e mostra a estimativa de tokens
-coursegen tasks run generate-lessons --runner claude --dry-run
+coursegen generate lessons --runner claude --dry-run
 
 # Gera todas as aulas — SEQUENCIAL, uma sessão isolada por aula,
 # contexto limpo entre aulas (aula 1 termina → aula 2 começa do zero)
-coursegen tasks run generate-lessons --runner claude
+coursegen generate lessons --runner claude
 
 # Acompanha o status e recupera falhas (só reexecuta o que falhou)
-coursegen tasks status
-coursegen tasks retry failed
+coursegen status
+coursegen retry failed
 
 # Regera só uma aula / um módulo (--force ignora o cache)
-coursegen tasks run generate-lessons --runner claude --lesson lesson-01-01 --force
-coursegen tasks run generate-lessons --runner claude --module 02
+coursegen generate lessons --runner claude --lesson lesson-01-01 --force
+coursegen generate lessons --runner claude --module 02
 
 # Outras fases de produção (roadmap v0.3 — ainda não implementadas)
-# coursegen tasks run generate-exercises --runner codex
-# coursegen tasks run generate-slides    --runner claude
-# coursegen tasks run review-lessons     --runner claude
+# coursegen generate exercises --runner codex
+# coursegen generate slides    --runner claude
+# coursegen review lessons     --runner claude
 ```
 
 > **Economia de tokens é critério do projeto.** A execução é sempre sequencial
@@ -214,7 +224,7 @@ Arquitetura completa, YAMLs, runners, modelo de estado e roadmap:
 [`DESIGN.md`](DESIGN.md).
 
 > **MVP implementado em Go** (`cmd/coursegen`, `internal/`): `init`, `doctor`,
-> `readiness check`, `tasks list`, `tasks run generate-lessons` (sequencial),
+> `readiness check`, `list`, `generate lessons` (sequencial),
 > `tasks status`, `tasks retry failed`, `runs list/show`. Runners: `claude`,
 > `codex`, `gemini`, `cursor`, `opencode` (dirigidos por YAML) + `mock` para
 > testes sem custo. Binário único, sem runtime. A arquitetura completa e o

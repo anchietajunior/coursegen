@@ -33,7 +33,7 @@ func New() *Reporter {
 
 func (r *Reporter) RunHeader(run *state.Run, total int, runner string) {
 	r.line(fmt.Sprintf("CourseGen · %s · runner=%s · modo sequencial (contexto limpo a cada aula)",
-		run.Task, runner))
+		run.Operation, runner))
 	noun := "aulas encontradas"
 	if total == 1 {
 		noun = "aula encontrada"
@@ -88,7 +88,7 @@ func (r *Reporter) StatusTable(run *state.Run) {
 	ok, _, skipped := countStatuses(run)
 	done := ok + skipped
 	r.line(fmt.Sprintf("Run %s · %s · runner=%s · status=%s · %d/%d concluídas (%d ok, %d pulados) · ~%s tokens",
-		run.ID, run.Task, run.Runner, strings.ToUpper(run.Status), done, run.Total, ok, skipped, tokens.Human(run.Tokens)))
+		run.ID, run.Operation, run.Runner, strings.ToUpper(run.Status), done, run.Total, ok, skipped, tokens.Human(run.Tokens)))
 	r.line("")
 	r.line(fmt.Sprintf("%-16s %-9s %-6s %-9s %s", "UNIDADE", "STATUS", "TENT.", "DURAÇÃO", "OUTPUT/ERRO"))
 	for _, e := range run.Executions {
@@ -107,11 +107,11 @@ func (r *Reporter) RunsTable(runs []*state.Run) {
 		return
 	}
 	r.line(fmt.Sprintf("%-28s %-18s %-9s %-9s %-9s %s",
-		"RUN_ID", "TASK", "RUNNER", "STATUS", "DONE/TOT", "INÍCIO"))
+		"RUN_ID", "OPERAÇÃO", "RUNNER", "STATUS", "DONE/TOT", "INÍCIO"))
 	for _, run := range runs {
 		ok, _, skipped := countStatuses(run)
 		r.line(fmt.Sprintf("%-28s %-18s %-9s %-9s %-9s %s",
-			run.ID, run.Task, run.Runner, run.Status,
+			run.ID, run.Operation, run.Runner, run.Status,
 			fmt.Sprintf("%d/%d", ok+skipped, run.Total), run.StartedAt))
 	}
 }
