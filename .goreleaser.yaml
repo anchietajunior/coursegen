@@ -32,9 +32,9 @@ checksum:
 brews:
   - name: coursegen
     repository:
-      owner: coursegen
+      owner: anchietajunior
       name: homebrew-tap
-    homepage: "https://github.com/coursegen/coursegen"
+    homepage: "https://github.com/anchietajunior/coursegen"
     description: "Orquestra a produção de aulas de cursos com agentes de IA"
     license: "MIT"
     caveats: |

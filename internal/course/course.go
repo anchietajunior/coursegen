@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/coursegen/coursegen/internal/config"
+	"github.com/anchietajunior/coursegen/internal/config"
 )
 
 var lessonRe = regexp.MustCompile(`lesson-(\d{2})-(\d{2})`)

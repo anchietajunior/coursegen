@@ -1,7 +1,7 @@
 # Build output
 /bin/
 /dist/
-coursegen
+/coursegen          # binário na raiz (NÃO o diretório cmd/coursegen)
 
 # Estado de runtime gerado pela CLI nos projetos de curso
 .coursegen/

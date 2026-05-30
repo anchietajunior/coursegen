@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/coursegen/coursegen/internal/course"
+	"github.com/anchietajunior/coursegen/internal/course"
 )
 
 const schemaVersion = 1

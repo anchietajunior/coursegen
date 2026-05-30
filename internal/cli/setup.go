@@ -13,8 +13,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/coursegen/coursegen/internal/assets"
-	"github.com/coursegen/coursegen/internal/config"
+	"github.com/anchietajunior/coursegen/internal/assets"
+	"github.com/anchietajunior/coursegen/internal/config"
 )
 
 // knownAgents is the ordered list of agents the user can target. These are the

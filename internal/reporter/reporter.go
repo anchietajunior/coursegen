@@ -10,9 +10,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/coursegen/coursegen/internal/course"
-	"github.com/coursegen/coursegen/internal/state"
-	"github.com/coursegen/coursegen/internal/tokens"
+	"github.com/anchietajunior/coursegen/internal/course"
+	"github.com/anchietajunior/coursegen/internal/state"
+	"github.com/anchietajunior/coursegen/internal/tokens"
 )
 
 var symbols = map[string]string{

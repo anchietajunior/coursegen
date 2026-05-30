@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/coursegen/coursegen/internal/config"
-	"github.com/coursegen/coursegen/internal/course"
-	"github.com/coursegen/coursegen/internal/tokens"
+	"github.com/anchietajunior/coursegen/internal/config"
+	"github.com/anchietajunior/coursegen/internal/course"
+	"github.com/anchietajunior/coursegen/internal/tokens"
 )
 
 // SharedDoc is a labeled shared document included in the pack.

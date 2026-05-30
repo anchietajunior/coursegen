@@ -33,7 +33,9 @@ A CLI **só** executa produção depois que o readiness check aprovar o curso.
 ```
 coursegen/
 ├── README.md          # este arquivo — porta de entrada
-├── DESIGN.md          # arquitetura completa da CLI (Ruby)
+├── DESIGN.md          # arquitetura completa da CLI
+├── cmd/coursegen/     # entrypoint da CLI (Go)
+├── internal/          # pacotes da CLI (config, runner, executor, …)
 └── skills/            # pacote de skills de planejamento (agent-agnósticas)
     ├── README.md      # índice e convenções das skills
     ├── course-discovery.md
@@ -52,7 +54,7 @@ Quando você usa o sistema em um curso, o **projeto do curso** tem esta forma
 course/
 ├── coursegen.yml      # config da CLI
 ├── docs/              # ENTRADA: planejamento gerado pelas skills (00..06)
-├── .coursegen/        # estado interno (SQLite, logs, runs)
+├── .coursegen/        # estado interno (state.json, logs, runs)
 └── output/            # SAÍDA: lessons/ exercises/ projects/ slides/ reviews/
 ```
 
@@ -131,7 +133,7 @@ o status é exibido enquanto roda.
 
 ```bash
 # Homebrew (quando o tap estiver publicado):
-brew install coursegen/tap/coursegen
+brew install anchietajunior/tap/coursegen
 
 # Em seguida, escolha seu agente e instale as skills de planejamento:
 coursegen setup
@@ -152,7 +154,7 @@ make build            # gera ./bin/coursegen
 # ou:
 go build -o bin/coursegen ./cmd/coursegen
 # ou instale no PATH:
-go install github.com/coursegen/coursegen/cmd/coursegen@latest
+go install github.com/anchietajunior/coursegen/cmd/coursegen@latest
 ```
 
 Para distribuir binários prontos (sem Go na máquina do usuário):

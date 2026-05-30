@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coursegen/coursegen/internal/config"
+	"github.com/anchietajunior/coursegen/internal/config"
 )
 
 // ReadinessResult is the outcome of parsing the readiness checklist.

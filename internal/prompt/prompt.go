@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/coursegen/coursegen/internal/contextpack"
+	"github.com/anchietajunior/coursegen/internal/contextpack"
 )
 
 //go:embed templates/generate-lesson.tmpl

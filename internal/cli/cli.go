@@ -14,15 +14,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/coursegen/coursegen/internal/config"
-	"github.com/coursegen/coursegen/internal/contextpack"
-	"github.com/coursegen/coursegen/internal/course"
-	"github.com/coursegen/coursegen/internal/executor"
-	"github.com/coursegen/coursegen/internal/prompt"
-	"github.com/coursegen/coursegen/internal/reporter"
-	"github.com/coursegen/coursegen/internal/runner"
-	"github.com/coursegen/coursegen/internal/state"
-	"github.com/coursegen/coursegen/internal/tokens"
+	"github.com/anchietajunior/coursegen/internal/config"
+	"github.com/anchietajunior/coursegen/internal/contextpack"
+	"github.com/anchietajunior/coursegen/internal/course"
+	"github.com/anchietajunior/coursegen/internal/executor"
+	"github.com/anchietajunior/coursegen/internal/prompt"
+	"github.com/anchietajunior/coursegen/internal/reporter"
+	"github.com/anchietajunior/coursegen/internal/runner"
+	"github.com/anchietajunior/coursegen/internal/state"
+	"github.com/anchietajunior/coursegen/internal/tokens"
 )
 
 // Version of the CLI.
