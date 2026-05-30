@@ -26,7 +26,7 @@
 2. [Arquitetura](#2-arquitetura)
 3. [Estrutura de pastas](#3-estrutura-de-pastas)
 4. [Comandos](#4-comandos)
-5. [Formato dos YAMLs](#5-formato-dos-yamls)
+5. [Formato dos arquivos de configuração (JSON)](#5-formato-dos-arquivos-de-configuração-json)
 6. [Interface dos runners](#6-interface-dos-runners)
 7. [Fluxo de execução](#7-fluxo-de-execução)
 8. [Prompt templates](#8-prompt-templates)
@@ -75,7 +75,7 @@ A filosofia é a de um **build system para conteúdo educacional** (pense em
    `docs/06-course-readiness-checklist.md` não estiver **APROVADO**.
 5. **Idempotência e retomada.** Reexecutar é seguro; o que já foi gerado e não
    mudou é pulado. Falhas são retentáveis sem reprocessar o curso inteiro.
-6. **Runner-agnóstico.** Trocar de agente é trocar um arquivo YAML, não código.
+6. **Runner-agnóstico.** Trocar de agente é trocar um arquivo JSON, não código.
 7. **Tudo auditável.** Cada execução registra prompt, contexto, stdout/stderr,
    exit code, duração e hash de entrada.
 
@@ -104,17 +104,17 @@ em Ruby:
 | Camada | Tecnologia (Go) | Papel |
 |---|---|---|
 | CLI / comandos | **stdlib `flag`** + dispatch próprio (≈ Thor) | Comandos, subcomandos, flags, help |
-| Configuração | **`gopkg.in/yaml.v3`** (≈ Psych) | `coursegen.yml`, runners (override) |
+| Configuração | **stdlib `encoding/json`** | `coursegen.json`, runners (override) |
 | Estado | **JSON** (`encoding/json`) — MVP; SQLite no roadmap | Runs, execuções, cache de idempotência |
 | Execução externa | **`os/exec`** + `context` (≈ Open3) | Spawn de sessões de agente, captura de I/O, timeout |
 | Templates de prompt | **`text/template`** embarcado (`//go:embed`) (≈ ERB) | Montagem do prompt a partir do context pack |
 | Paralelismo | sequencial no MVP; **goroutines + worker pool** no roadmap (≈ threads) | Fan-out de aulas (I/O-bound) |
 | Artefatos | Sistema de arquivos | `output/`, `.coursegen/runs/`, logs |
 
-> **Dependências:** uma só (`yaml.v3`). Tudo o mais é stdlib → compila offline e
-> gera **um binário único, estático (CGO off), sem runtime**, cross-compilado
-> para macOS/Linux/Windows (`make release`). Esse era o principal ponto fraco do
-> Ruby para distribuição.
+> **Dependências:** **zero** — 100% stdlib (config e estado em `encoding/json`).
+> Compila offline e gera **um binário único, estático (CGO off), sem runtime**,
+> cross-compilado para macOS/Linux/Windows (`make release`). Sem `vendor/`, sem
+> `go.sum`. Esse era o principal ponto fraco do Ruby para distribuição.
 >
 > Por que paralelismo por goroutines (roadmap) e não processos no orquestrador? O
 > trabalho pesado roda em **subprocessos externos** (o agente); o orquestrador
@@ -125,17 +125,17 @@ em Ruby:
 
 ```
 CourseGen::CLI                  # Thor — roteia comandos
-├── Config                      # carrega/valida coursegen.yml + tasks + runners
+├── Config                      # carrega/valida coursegen.json + tasks + runners
 ├── Course                      # representa o projeto: docs, módulos, aulas
 │   ├── Readiness               # parser/gate do 06-checklist
 │   ├── ModuleSpec / LessonSpec # descoberta e parsing das specs
-├── Task                        # definição declarativa (YAML) de uma task
+├── Task                        # definição declarativa (JSON) de uma task
 │   └── TaskUnit                # uma unidade executável (1 aula, 1 módulo, curso)
 ├── Workflow                    # sequência/grafo de tasks
 ├── ContextPack                 # monta o conjunto mínimo de arquivos por unidade
 ├── PromptBuilder               # ERB: context pack + instruções → prompt final
 ├── Runner (interface)          # claude / codex / gemini / cursor / opencode
-│   └── RunnerRegistry          # resolve runner por nome a partir de runners/*.yml
+│   └── RunnerRegistry          # resolve runner por nome a partir de runners/*.json
 ├── Executor                    # loop de execução: isolamento, timeout, paralelismo
 ├── Validator                   # checa o artefato contra os critérios de aceite
 ├── State (Store)               # repositório SQLite (runs, execs, artifacts, events)
@@ -151,7 +151,7 @@ CourseGen::CLI                  # Thor — roteia comandos
                 └───────────────┬────────────────────────────┘
                                 │
                    ┌────────────▼────────────┐
-                   │ Config + Course loader   │  lê coursegen.yml, docs/
+                   │ Config + Course loader   │  lê coursegen.json, docs/
                    └────────────┬────────────┘
                                 │
                    ┌────────────▼────────────┐
@@ -187,7 +187,7 @@ CourseGen::CLI                  # Thor — roteia comandos
 
 ```
 course/
-├── coursegen.yml                         # configuração do projeto
+├── coursegen.json                         # configuração do projeto
 ├── docs/                                 # ENTRADA (gerada pelas skills, read-only p/ a CLI)
 │   ├── 00-course-discovery.md
 │   ├── 01-course-prd.md
@@ -261,16 +261,16 @@ coursegen/                                # este repositório
 │       ├── reporters/
 │       └── defaults/                     # configs embarcadas (overridáveis)
 │           ├── tasks/
-│           │   ├── generate-lessons.yml
-│           │   ├── review-lessons.yml
-│           │   ├── generate-exercises.yml
-│           │   ├── generate-slides.yml
-│           │   ├── generate-projects.yml
-│           │   └── package-course.yml
+│           │   ├── generate-lessons.json
+│           │   ├── review-lessons.json
+│           │   ├── generate-exercises.json
+│           │   ├── generate-slides.json
+│           │   ├── generate-projects.json
+│           │   └── package-course.json
 │           ├── workflows/
-│           │   ├── production.yml  review.yml  slides.yml  full-build.yml
+│           │   ├── production.json  review.json  slides.json  full-build.json
 │           ├── runners/
-│           │   ├── claude.yml  codex.yml  gemini.yml  cursor.yml  opencode.yml
+│           │   ├── claude.json  codex.json  gemini.json  cursor.json  opencode.json
 │           └── prompts/
 │               ├── generate-lesson.md.erb
 │               ├── review-lesson.md.erb
@@ -326,7 +326,7 @@ coursegen
 
 ### 4.1 `coursegen init`
 
-Faz scaffold da estrutura do projeto, gera `coursegen.yml`, cria `.coursegen/`,
+Faz scaffold da estrutura do projeto, gera `coursegen.json`, cria `.coursegen/`,
 inicializa o SQLite (migrations) e copia os defaults de tasks/runners/prompts
 para referência.
 
@@ -392,14 +392,14 @@ coursegen tasks run generate-slides  --runner claude
 
 | Flag | Default | Descrição |
 |---|---|---|
-| `--runner NAME` | `coursegen.yml` | Runner a usar |
+| `--runner NAME` | `coursegen.json` | Runner a usar |
 | `--parallel N` | `1` | Sessões simultâneas |
 | `--lesson ID` | (todas) | Filtra uma aula (`lesson-XX-YY`) |
 | `--module ID` | (todos) | Filtra um módulo (`module-XX`) |
 | `--force` | `false` | Regera mesmo se output existe e hash bate |
 | `--dry-run` | `false` | Planeja e imprime o que faria, sem executar |
 | `--no-readiness` | `false` | **Escape hatch** — ignora o gate (registra aviso) |
-| `--timeout S` | `coursegen.yml` | Timeout por sessão |
+| `--timeout S` | `coursegen.json` | Timeout por sessão |
 | `--continue` | `false` | Continua a última run em vez de criar nova |
 
 ### 4.5 `coursegen tasks status`
@@ -461,247 +461,220 @@ uma run grande.
 
 ---
 
-## 5. Formato dos YAMLs
+## 5. Formato dos arquivos de configuração (JSON)
 
-### 5.1 `coursegen.yml` (raiz do projeto)
+> **Todos os arquivos de configuração da CLI são JSON** (`encoding/json`, stdlib —
+> zero dependências). JSON não tem comentários: os campos são documentados aqui e
+> no README. Os exemplos de `tasks/` e `workflows/` abaixo descrevem o **design de
+> roadmap** (ainda não implementados) e seguem o mesmo formato JSON.
 
-```yaml
-version: 1
+### 5.1 `coursegen.json` (raiz do projeto) — implementado
 
-course:
-  name: "Engenharia de Software com Agentes de IA"
-  slug: "eng-software-agentes-ia"
-  language: pt-BR
-
-paths:
-  docs: docs
-  output: output
-  state: .coursegen/state.sqlite3
-  logs: .coursegen/logs
-  runs: .coursegen/runs
-
-readiness:
-  required: true
-  source: docs/06-course-readiness-checklist.md
-  approved_marker: "APROVADO"          # token procurado na seção "Veredito"
-
-runners:
-  default: claude
-  available: [claude, codex, gemini, cursor, opencode]
-
-execution:
-  parallel: 1                          # default; sobrescrito por --parallel
-  timeout_seconds: 900
-  retry:
-    max_attempts: 2
-    backoff_seconds: 10
-  on_validation_failure: fail          # fail | warn
-
-# Context pack compartilhado por TODA aula (o mínimo comum).
-# As partes "por unidade" (module spec, lesson spec) são definidas na task.
-context:
-  shared:
-    - docs/01-course-prd.md
-    - docs/02-market-research.md
-    - docs/03-learning-architecture.md
-  max_tokens_estimate: 60000           # aviso se o pack estourar
+```json
+{
+  "version": 1,
+  "course": {
+    "name": "Engenharia de Software com Agentes de IA",
+    "language": "pt-BR"
+  },
+  "paths": {
+    "docs": "docs",
+    "output": "output",
+    "state": ".coursegen/state.json",
+    "logs": ".coursegen/logs",
+    "runs": ".coursegen/runs"
+  },
+  "readiness": {
+    "required": true,
+    "source": "docs/06-course-readiness-checklist.md",
+    "approved_marker": "APROVADO"
+  },
+  "runners": {
+    "default": "claude"
+  },
+  "execution": {
+    "timeout_seconds": 900,
+    "on_validation_failure": "warn"
+  },
+  "context": {
+    "shared": [
+      "docs/01-course-prd.md",
+      "docs/02-market-research.md",
+      "docs/03-learning-architecture.md"
+    ],
+    "max_tokens_estimate": 120000
+  }
+}
 ```
 
-### 5.2 `tasks/generate-lessons.yml`
+Campos: `readiness.approved_marker` é o token procurado na seção "Veredito";
+`execution.on_validation_failure` aceita `warn` | `fail`; `context.shared` é o
+pack comum a TODA aula (a module spec e a lesson spec daquela aula são anexadas
+automaticamente); `max_tokens_estimate` só dispara um aviso.
 
-```yaml
-name: generate-lessons
-description: "Gera a aula completa a partir da lesson spec."
-unit: lesson                           # lesson | module | course → granularidade do fan-out
-requires_readiness: true
+### 5.2 `tasks/generate-lessons.json` (roadmap)
 
-# Como descobrir as unidades de trabalho.
-discover:
-  glob: "docs/05-lesson-specs/module-*/lesson-*-*.md"
-  # captura módulo e aula a partir do nome do arquivo
-  id_pattern: "lesson-(?<module>\\d{2})-(?<lesson>\\d{2})"
+`unit`: `lesson` | `module` | `course` (granularidade do fan-out). `discover`
+acha as unidades de trabalho; `id_pattern` captura módulo/aula do nome do
+arquivo. `context.inherit_shared` inclui `coursegen.json > context.shared`;
+`exclude_globs` impede vazamento de outras lesson specs. `output.overwrite`:
+`always` | `if_changed` | `never`. `acceptance` é a validação heurística.
 
-# Context pack: o que entra na sessão isolada de CADA aula.
-context:
-  inherit_shared: true                 # inclui coursegen.yml > context.shared
-  per_unit:
-    module_spec: "docs/04-module-specs/module-{module}.md"
-    lesson_spec: "docs/05-lesson-specs/module-{module}/lesson-{module}-{lesson}.md"
-  # explicitamente proibido: incluir outras lesson specs
-  exclude_globs:
-    - "docs/05-lesson-specs/**"        # exceto a injetada acima
-
-prompt_template: prompts/generate-lesson.md.erb
-
-output:
-  path: "output/lessons/module-{module}/lesson-{module}-{lesson}.md"
-  capture: stdout                      # stdout | file
-  overwrite: if_changed                # always | if_changed | never
-
-# Validação heurística do artefato gerado.
-acceptance:
-  min_bytes: 800
-  must_include_sections:
-    - "Título"
-    - "Objetivo"
-    - "Contexto"
-    - "Motivação"
-    - "Explicação conceitual"
-    - "Explicação técnica"
-    - "Exemplo prático"
-    - "Boas práticas"
-    - "Erros comuns"
-    - "Checklist de aprendizado"
-    - "Exercício da aula"
-    - "Resumo final"
-  forbid_patterns:                     # detecta vazamento de escopo
-    - "(?i)novo módulo"
-    - "(?i)aula seguinte:"
+```json
+{
+  "name": "generate-lessons",
+  "description": "Gera a aula completa a partir da lesson spec.",
+  "unit": "lesson",
+  "requires_readiness": true,
+  "discover": {
+    "glob": "docs/05-lesson-specs/module-*/lesson-*-*.md",
+    "id_pattern": "lesson-(?<module>\\d{2})-(?<lesson>\\d{2})"
+  },
+  "context": {
+    "inherit_shared": true,
+    "per_unit": {
+      "module_spec": "docs/04-module-specs/module-{module}.md",
+      "lesson_spec": "docs/05-lesson-specs/module-{module}/lesson-{module}-{lesson}.md"
+    },
+    "exclude_globs": ["docs/05-lesson-specs/**"]
+  },
+  "prompt_template": "prompts/generate-lesson.tmpl",
+  "output": {
+    "path": "output/lessons/module-{module}/lesson-{module}-{lesson}.md",
+    "capture": "stdout",
+    "overwrite": "if_changed"
+  },
+  "acceptance": {
+    "min_bytes": 800,
+    "must_include_sections": [
+      "Título", "Objetivo", "Contexto", "Motivação", "Explicação conceitual",
+      "Explicação técnica", "Exemplo prático", "Boas práticas", "Erros comuns",
+      "Checklist de aprendizado", "Exercício da aula", "Resumo final"
+    ],
+    "forbid_patterns": ["(?i)novo módulo", "(?i)aula seguinte:"]
+  }
+}
 ```
 
-### 5.3 `tasks/review-lessons.yml`
+### 5.3 `tasks/review-lessons.json` (roadmap)
 
-```yaml
-name: review-lessons
-description: "Revisa a aula gerada contra a lesson spec e os critérios de aceite."
-unit: lesson
-requires_readiness: false              # review pode rodar sobre rascunhos
-
-discover:
-  glob: "output/lessons/module-*/lesson-*-*.md"   # revisa o que foi GERADO
-  id_pattern: "lesson-(?<module>\\d{2})-(?<lesson>\\d{2})"
-
-context:
-  inherit_shared: true
-  per_unit:
-    lesson_spec: "docs/05-lesson-specs/module-{module}/lesson-{module}-{lesson}.md"
-    module_spec: "docs/04-module-specs/module-{module}.md"
-    generated_lesson: "output/lessons/module-{module}/lesson-{module}-{lesson}.md"
-
-prompt_template: prompts/review-lesson.md.erb
-
-output:
-  path: "output/reviews/lessons/module-{module}/lesson-{module}-{lesson}.review.md"
-  capture: stdout
-  overwrite: always
-
-acceptance:
-  must_include_sections: ["Veredito", "Conformidade com a spec", "Correções sugeridas"]
+```json
+{
+  "name": "review-lessons",
+  "description": "Revisa a aula gerada contra a lesson spec e os critérios de aceite.",
+  "unit": "lesson",
+  "requires_readiness": false,
+  "discover": {
+    "glob": "output/lessons/module-*/lesson-*-*.md",
+    "id_pattern": "lesson-(?<module>\\d{2})-(?<lesson>\\d{2})"
+  },
+  "context": {
+    "inherit_shared": true,
+    "per_unit": {
+      "lesson_spec": "docs/05-lesson-specs/module-{module}/lesson-{module}-{lesson}.md",
+      "module_spec": "docs/04-module-specs/module-{module}.md",
+      "generated_lesson": "output/lessons/module-{module}/lesson-{module}-{lesson}.md"
+    }
+  },
+  "prompt_template": "prompts/review-lesson.tmpl",
+  "output": {
+    "path": "output/reviews/lessons/module-{module}/lesson-{module}-{lesson}.review.md",
+    "capture": "stdout",
+    "overwrite": "always"
+  },
+  "acceptance": {
+    "must_include_sections": ["Veredito", "Conformidade com a spec", "Correções sugeridas"]
+  }
+}
 ```
 
-### 5.4 `tasks/generate-slides.yml`
+### 5.4 `tasks/generate-slides.json` (roadmap)
 
-```yaml
-name: generate-slides
-description: "Gera o deck de slides (Markdown/Marp) da aula."
-unit: lesson
-requires_readiness: true
-
-discover:
-  glob: "docs/05-lesson-specs/module-*/lesson-*-*.md"
-  id_pattern: "lesson-(?<module>\\d{2})-(?<lesson>\\d{2})"
-
-context:
-  inherit_shared: true
-  per_unit:
-    lesson_spec: "docs/05-lesson-specs/module-{module}/lesson-{module}-{lesson}.md"
-    module_spec: "docs/04-module-specs/module-{module}.md"
-    generated_lesson: "output/lessons/module-{module}/lesson-{module}-{lesson}.md"  # opcional
-
-prompt_template: prompts/generate-slides.md.erb
-
-output:
-  path: "output/slides/module-{module}/lesson-{module}-{lesson}.md"
-  capture: stdout
-  overwrite: if_changed
-
-acceptance:
-  min_bytes: 300
-  must_include_patterns: ["^---$", "^#"]    # separadores de slide + título
+```json
+{
+  "name": "generate-slides",
+  "description": "Gera o deck de slides (Markdown/Marp) da aula.",
+  "unit": "lesson",
+  "requires_readiness": true,
+  "discover": {
+    "glob": "docs/05-lesson-specs/module-*/lesson-*-*.md",
+    "id_pattern": "lesson-(?<module>\\d{2})-(?<lesson>\\d{2})"
+  },
+  "context": {
+    "inherit_shared": true,
+    "per_unit": {
+      "lesson_spec": "docs/05-lesson-specs/module-{module}/lesson-{module}-{lesson}.md",
+      "module_spec": "docs/04-module-specs/module-{module}.md",
+      "generated_lesson": "output/lessons/module-{module}/lesson-{module}-{lesson}.md"
+    }
+  },
+  "prompt_template": "prompts/generate-slides.tmpl",
+  "output": {
+    "path": "output/slides/module-{module}/lesson-{module}-{lesson}.md",
+    "capture": "stdout",
+    "overwrite": "if_changed"
+  },
+  "acceptance": {
+    "min_bytes": 300,
+    "must_include_patterns": ["^---$", "^#"]
+  }
+}
 ```
 
-### 5.5 `runners/claude.yml`
+### 5.5 `coursegen/runners/claude.json` (override — implementado)
 
-```yaml
-name: claude
-description: "Claude Code em modo headless (print)."
-bin: claude
-healthcheck: "claude --version"
+Override opcional que **sobrescreve o built-in** de mesmo nome. `prompt.via`:
+`stdin` | `arg` | `file` (com `arg`/`file`, os tokens `{prompt}` / `{prompt_file}`
+/ `{workdir}` / `{output_path}` são expandidos em `args`). Valores de `env`
+expandem `${VAR}` do ambiente.
 
-# Como o prompt chega ao agente.
-prompt:
-  via: stdin                 # stdin | arg | file
-  # se via: arg → use {prompt} em args; se via: file → {prompt_file}
-
-# Argumentos da invocação. Tokens disponíveis:
-#   {prompt} {prompt_file} {workdir} {output_path}
-args:
-  - "-p"                     # modo print/não-interativo
-  - "--output-format"
-  - "text"
-
-# Como o context pack é fornecido ao agente.
-context:
-  strategy: inline_in_prompt # inline_in_prompt | copy_to_workdir | path_args
-
-# De onde sai o artefato.
-output:
-  capture: stdout            # casa com tasks[].output.capture
-  strip_code_fences: false
-
-# Execução do processo.
-cwd: "{workdir}"             # cada sessão roda no seu workdir isolado
-env:
-  ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
-timeout_seconds: 900
-kill_signal: TERM
+```json
+{
+  "name": "claude",
+  "bin": "claude",
+  "healthcheck": "claude --version",
+  "args": ["-p", "--output-format", "text"],
+  "prompt": { "via": "stdin" },
+  "output": { "strip_code_fences": false },
+  "kill_signal": "TERM",
+  "env": { "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}" }
+}
 ```
 
-### 5.6 `runners/codex.yml`
+### 5.6 `coursegen/runners/codex.json` (override)
 
-```yaml
-name: codex
-description: "OpenAI Codex CLI em modo não-interativo."
-bin: codex
-healthcheck: "codex --version"
-
-prompt:
-  via: arg
-args:
-  - "exec"                   # subcomando não-interativo
-  - "{prompt}"
-
-context:
-  strategy: inline_in_prompt
-
-output:
-  capture: stdout
-  strip_code_fences: false
-
-cwd: "{workdir}"
-env:
-  OPENAI_API_KEY: "${OPENAI_API_KEY}"
-timeout_seconds: 900
-kill_signal: TERM
+```json
+{
+  "name": "codex",
+  "bin": "codex",
+  "healthcheck": "codex --version",
+  "args": ["exec", "{prompt}"],
+  "prompt": { "via": "arg" },
+  "output": { "strip_code_fences": false },
+  "kill_signal": "TERM",
+  "env": { "OPENAI_API_KEY": "${OPENAI_API_KEY}" }
+}
 ```
 
 > Runners `gemini`, `cursor`, `opencode` seguem o mesmo esquema, variando `bin`,
 > subcomando e env (`gemini -p`, `cursor-agent -p`, `opencode run`). **Os flags
 > exatos dependem da versão de cada ferramenta** — por isso ficam isolados em
-> YAML, atualizáveis sem mexer no código Ruby. `coursegen doctor` valida cada um.
+> JSON, atualizáveis sem mexer no código Go. `coursegen doctor` valida cada um.
 
-### 5.7 `workflows/production.yml` (exemplo)
+### 5.7 `workflows/production.json` (roadmap)
 
-```yaml
-name: production
-description: "Pipeline completo de produção de conteúdo."
-requires_readiness: true
-steps:
-  - task: generate-lessons
-  - task: generate-exercises
-  - task: review-lessons
-    continue_on_failure: true     # review não bloqueia o pipeline
-stop_on_failure: true             # default para as demais steps
+```json
+{
+  "name": "production",
+  "description": "Pipeline completo de produção de conteúdo.",
+  "requires_readiness": true,
+  "stop_on_failure": true,
+  "steps": [
+    { "task": "generate-lessons" },
+    { "task": "generate-exercises" },
+    { "task": "review-lessons", "continue_on_failure": true }
+  ]
+}
 ```
 
 ---
@@ -710,7 +683,7 @@ stop_on_failure: true             # default para as demais steps
 
 Todo runner implementa a **mesma interface**. Como a variação entre `claude`,
 `codex`, etc. é quase toda de *invocação de processo*, há uma única classe
-concreta `CliRunner` dirigida por YAML; runners exóticos podem subclassear.
+concreta `CliRunner` dirigida por JSON; runners exóticos podem subclassear.
 
 ```ruby
 module CourseGen
@@ -745,7 +718,7 @@ module CourseGen
       def run(invocation) = raise NotImplementedError
     end
 
-    # Implementação genérica dirigida por YAML — cobre os 5 runners.
+    # Implementação genérica dirigida por JSON — cobre os 5 runners.
     class CliRunner < Base
       def run(invocation)
         cmd   = build_argv(invocation)         # expande args + tokens
@@ -781,7 +754,7 @@ module CourseGen
           [o.read, e.read, t.value]
         end
       end
-      # build_argv / build_env / extract_artifact / classify: expandem o YAML.
+      # build_argv / build_env / extract_artifact / classify: expandem o JSON.
     end
   end
 end
@@ -803,7 +776,7 @@ end
 Detalhe do `generate-lessons --runner claude --parallel 3` (os 12 passos pedidos):
 
 ```
- 1. Carregar coursegen.yml + task generate-lessons.yml + runner claude.yml
+ 1. Carregar coursegen.json + task generate-lessons.json + runner claude.json
     → snapshot em .coursegen/config.lock.json (auditoria)
 
  2. READINESS GATE
@@ -1084,12 +1057,12 @@ de forma retomável**, com dois runners.
 
 | Capacidade | Detalhe |
 |---|---|
-| `coursegen init` | Scaffold + `coursegen.yml` + SQLite + defaults |
+| `coursegen init` | Scaffold + `coursegen.json` + SQLite + defaults |
 | `coursegen readiness check` | Parse do 06-checklist; gate funcional |
 | `coursegen tasks run generate-lessons` | Fluxo completo dos 12 passos |
 | `coursegen tasks status` | Tabela do estado da run |
 | `coursegen tasks retry failed` | Retry de falhas |
-| Runners | **claude** e **codex** (via `CliRunner` + YAML) |
+| Runners | **claude** e **codex** (via `CliRunner` + JSON) |
 | Context pack | Mínimo, inline, isolado por aula |
 | Execução | **Sequencial primeiro** (`--parallel 1`) |
 | Estado | SQLite + WAL + idempotência por hash |
@@ -1147,7 +1120,7 @@ de forma retomável**, com dois runners.
 | # | Risco | Impacto | Mitigação |
 |---|---|---|---|
 | 1 | **Concorrência no SQLite** sob `--parallel` | Corrupção/locks | WAL + writer único com Mutex + `busy_timeout`; orquestrador é processo único |
-| 2 | **Drift de flags dos CLIs** (claude/codex/… mudam de versão) | Runs quebram | Invocação isolada em YAML; `doctor` + `healthcheck`; sem flags hardcoded |
+| 2 | **Drift de flags dos CLIs** (claude/codex/… mudam de versão) | Runs quebram | Invocação isolada em JSON; `doctor` + `healthcheck`; sem flags hardcoded |
 | 3 | **Não-determinismo do LLM** | Aula fora do formato | Validação de aceite (seções/regex); `on_validation_failure: fail`; retry |
 | 4 | **Vazamento de escopo** (agente cria módulos/menciona outras aulas) | Mistura de conteúdo | Context pack mínimo + `forbid_patterns`; prompt restritivo; review task |
 | 5 | **Estouro de contexto/tokens** | Falha ou custo alto | Pack mínimo por aula; `max_tokens_estimate` com aviso; nunca "todas as aulas" |
@@ -1155,7 +1128,7 @@ de forma retomável**, com dois runners.
 | 7 | **Processos órfãos / travados** | Recursos presos | Timeout por sessão + kill de process group (`pgroup: true`) |
 | 8 | **stdout poluído** (agente fala antes do markdown) | Artefato sujo | Regra "responda só o markdown"; `strip_code_fences`; validação de bytes/seções |
 | 9 | **Parsing frágil do readiness** | Gate erra | Marcador estruturado (`approved_marker`) na seção "Veredito"; `--strict` confere artefatos |
-| 10 | **Segredos em arquivo** | Vazamento de chave | Chaves só via env (`${VAR}`); YAML nunca guarda segredo; logs redatados |
+| 10 | **Segredos em arquivo** | Vazamento de chave | Chaves só via env (`${VAR}`); JSON nunca guarda segredo; logs redatados |
 | 11 | **Retomada inconsistente** após crash | Execs presas em `running` | Na inicialização, reconciliar `running` órfãos → `failed`; `--continue` |
 | 12 | **Specs inválidas/ausentes** apesar do APROVADO | Pack quebrado | Validar existência dos arquivos do pack antes do spawn; falha clara por unidade |
 
@@ -1174,7 +1147,7 @@ nativas do Ruby. O design conceitual portou ~1:1.
 superfície de comandos é pequena (`init`, `doctor`, `readiness`, `tasks`,
 `runs`). O `flag` da stdlib + um switch de subcomandos cobre tudo sem dependência
 extra, mantendo o binário mínimo. (Cobra seria o equivalente ao Thor; dispensado
-para manter zero deps além de `yaml.v3`.)
+para manter **zero dependências externas** — 100% stdlib.)
 
 **ADR-002 — Estado em JSON no MVP, SQLite no roadmap.** O MVP roda **sequencial,
 em um processo**: não há escritor concorrente nem necessidade de SQL ainda, e
@@ -1198,7 +1171,7 @@ fica disponível para casos multi-arquivo.
 
 **ADR-006 — Runner único dirigido por config (`CliRunner`).** A diferença entre
 os 5 runners é quase toda de invocação de processo. Um `struct` `Spec` (defaults
-embarcados + override YAML por projeto) evita 5 implementações quase idênticas e
+embarcados + override JSON por projeto) evita 5 implementações quase idênticas e
 permite adicionar/ajustar runner sem recompilar o que importa.
 
 **ADR-007 — Sequencial no MVP; goroutines (não processos) no roadmap.** O
@@ -1231,7 +1204,7 @@ $ cd ~/cursos/eng-software-agentes-ia
 
 # 1) Inicializa o projeto CourseGen (uma vez)
 $ coursegen init --name "Engenharia de Software com Agentes de IA" --runner claude
-✓ coursegen.yml criado
+✓ coursegen.json criado
 ✓ .coursegen/state.sqlite3 inicializado (schema v1)
 ✓ defaults copiados em coursegen/{tasks,runners,prompts}/
 → Próximo passo: coursegen readiness check

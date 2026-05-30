@@ -1,71 +1,70 @@
-// Package config loads and resolves coursegen.yml. All paths are resolved
-// relative to the project root (the directory containing coursegen.yml).
+// Package config loads and resolves coursegen.json. All paths are resolved
+// relative to the project root (the directory containing coursegen.json).
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"gopkg.in/yaml.v3"
 )
 
-// Config is the parsed coursegen.yml plus the resolved project root.
+// Config is the parsed coursegen.json plus the resolved project root.
 type Config struct {
-	Root    string `yaml:"-"`
-	Version int    `yaml:"version"`
+	Root    string `json:"-"`
+	Version int    `json:"version"`
 
 	Course struct {
-		Name     string `yaml:"name"`
-		Language string `yaml:"language"`
-	} `yaml:"course"`
+		Name     string `json:"name"`
+		Language string `json:"language"`
+	} `json:"course"`
 
 	Paths struct {
-		Docs   string `yaml:"docs"`
-		Output string `yaml:"output"`
-		State  string `yaml:"state"`
-		Logs   string `yaml:"logs"`
-		Runs   string `yaml:"runs"`
-	} `yaml:"paths"`
+		Docs   string `json:"docs"`
+		Output string `json:"output"`
+		State  string `json:"state"`
+		Logs   string `json:"logs"`
+		Runs   string `json:"runs"`
+	} `json:"paths"`
 
 	Readiness struct {
-		Required       *bool  `yaml:"required"`
-		Source         string `yaml:"source"`
-		ApprovedMarker string `yaml:"approved_marker"`
-	} `yaml:"readiness"`
+		Required       *bool  `json:"required"`
+		Source         string `json:"source"`
+		ApprovedMarker string `json:"approved_marker"`
+	} `json:"readiness"`
 
 	Runners struct {
-		Default string `yaml:"default"`
-	} `yaml:"runners"`
+		Default string `json:"default"`
+	} `json:"runners"`
 
 	Execution struct {
-		TimeoutSeconds      int    `yaml:"timeout_seconds"`
-		OnValidationFailure string `yaml:"on_validation_failure"`
-	} `yaml:"execution"`
+		TimeoutSeconds      int    `json:"timeout_seconds"`
+		OnValidationFailure string `json:"on_validation_failure"`
+	} `json:"execution"`
 
 	Context struct {
-		Shared            []string `yaml:"shared"`
-		MaxTokensEstimate int      `yaml:"max_tokens_estimate"`
-	} `yaml:"context"`
+		Shared            []string `json:"shared"`
+		MaxTokensEstimate int      `json:"max_tokens_estimate"`
+	} `json:"context"`
 }
 
-// Load reads coursegen.yml from root and applies defaults.
+// Load reads coursegen.json from root and applies defaults.
 func Load(root string) (*Config, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(abs, "coursegen.yml")
+	path := filepath.Join(abs, "coursegen.json")
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("coursegen.yml não encontrado em %s. Rode `coursegen init` primeiro", abs)
+		return nil, fmt.Errorf("coursegen.json não encontrado em %s. Rode `coursegen init` primeiro", abs)
 	} else if err != nil {
 		return nil, err
 	}
 
 	cfg := &Config{Root: abs}
-	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("coursegen.yml inválido: %w", err)
+	if err := json.Unmarshal(data, cfg); err != nil {
+		return nil, fmt.Errorf("coursegen.json inválido: %w", err)
 	}
 	cfg.applyDefaults()
 	return cfg, nil

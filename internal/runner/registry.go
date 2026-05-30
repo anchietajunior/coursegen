@@ -1,15 +1,14 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"gopkg.in/yaml.v3"
 )
 
 // builtinSpecs are the default runner configs. Resolution order:
-//  1. project override: coursegen/runners/<name>.yml
+//  1. project override: coursegen/runners/<name>.json
 //  2. these built-ins
 func builtinSpec(name string) (Spec, bool) {
 	specs := map[string]Spec{
@@ -76,10 +75,10 @@ func Resolve(name, root string) (Runner, error) {
 }
 
 func resolveSpec(name, root string) (Spec, error) {
-	overridePath := filepath.Join(root, "coursegen", "runners", name+".yml")
+	overridePath := filepath.Join(root, "coursegen", "runners", name+".json")
 	if data, err := os.ReadFile(overridePath); err == nil {
 		var spec Spec
-		if err := yaml.Unmarshal(data, &spec); err != nil {
+		if err := json.Unmarshal(data, &spec); err != nil {
 			return Spec{}, fmt.Errorf("runner override inválido (%s): %w", overridePath, err)
 		}
 		if spec.Name == "" {

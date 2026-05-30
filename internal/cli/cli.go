@@ -8,6 +8,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -26,7 +27,7 @@ import (
 )
 
 // Version of the CLI.
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 // Run dispatches a command and returns a process exit code.
 func Run(args []string) int {
@@ -102,15 +103,15 @@ func cmdInit(args []string) int {
 	name := fs.String("name", "", "Nome do curso")
 	language := fs.String("language", "pt-BR", "Idioma dos artefatos")
 	rnr := fs.String("runner", "claude", "Runner default")
-	force := fs.Bool("force", false, "Sobrescreve coursegen.yml existente")
+	force := fs.Bool("force", false, "Sobrescreve coursegen.json existente")
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
 
 	root, _ := os.Getwd()
-	cfgPath := filepath.Join(root, "coursegen.yml")
+	cfgPath := filepath.Join(root, "coursegen.json")
 	if _, err := os.Stat(cfgPath); err == nil && !*force {
-		fmt.Fprintln(os.Stderr, "coursegen.yml já existe. Use --force para sobrescrever.")
+		fmt.Fprintln(os.Stderr, "coursegen.json já existe. Use --force para sobrescrever.")
 		return 1
 	}
 
@@ -118,7 +119,7 @@ func cmdInit(args []string) int {
 	if courseName == "" {
 		courseName = filepath.Base(root)
 	}
-	if err := os.WriteFile(cfgPath, []byte(configYAML(courseName, *language, *rnr)), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(configJSON(courseName, *language, *rnr)), 0o644); err != nil {
 		return fail(err)
 	}
 
@@ -133,7 +134,7 @@ func cmdInit(args []string) int {
 	_ = os.WriteFile(filepath.Join(root, "coursegen/prompts/generate-lesson.tmpl"),
 		[]byte(prompt.DefaultTemplate()), 0o644)
 
-	fmt.Println("✓ coursegen.yml criado")
+	fmt.Println("✓ coursegen.json criado")
 	fmt.Println("✓ .coursegen/ e output/ criados")
 	fmt.Println("✓ template de prompt em coursegen/prompts/generate-lesson.tmpl")
 	fmt.Println("\nPróximo passo: garanta docs/ aprovado e rode `coursegen readiness check`.")
@@ -479,41 +480,52 @@ func printPlan(p *project, lessons []course.Lesson, r runner.Runner) int {
 	return 0
 }
 
-func configYAML(name, language, runnerName string) string {
-	return fmt.Sprintf(`version: 1
+// configJSON renders the default coursegen.json. Fields are documented in
+// README.md / DESIGN.md (JSON has no comments). The context.shared list is the
+// minimal pack shared by EVERY lesson; the module spec and the lesson spec of
+// each lesson are added automatically.
+func configJSON(name, language, runnerName string) string {
+	return fmt.Sprintf(`{
+  "version": 1,
+  "course": {
+    "name": %s,
+    "language": %s
+  },
+  "paths": {
+    "docs": "docs",
+    "output": "output",
+    "state": ".coursegen/state.json",
+    "logs": ".coursegen/logs",
+    "runs": ".coursegen/runs"
+  },
+  "readiness": {
+    "required": true,
+    "source": "docs/06-course-readiness-checklist.md",
+    "approved_marker": "APROVADO"
+  },
+  "runners": {
+    "default": %s
+  },
+  "execution": {
+    "timeout_seconds": 900,
+    "on_validation_failure": "warn"
+  },
+  "context": {
+    "shared": [
+      "docs/01-course-prd.md",
+      "docs/02-market-research.md",
+      "docs/03-learning-architecture.md"
+    ],
+    "max_tokens_estimate": 120000
+  }
+}
+`, jsonString(name), jsonString(language), jsonString(runnerName))
+}
 
-course:
-  name: "%s"
-  language: %s
-
-paths:
-  docs: docs
-  output: output
-  state: .coursegen/state.json
-  logs: .coursegen/logs
-  runs: .coursegen/runs
-
-readiness:
-  required: true
-  source: docs/06-course-readiness-checklist.md
-  approved_marker: "APROVADO"
-
-runners:
-  default: %s
-
-execution:
-  timeout_seconds: 900
-  on_validation_failure: warn      # warn | fail
-
-# Context pack compartilhado por TODA aula (o mínimo comum).
-# A module spec e a lesson spec daquela aula são adicionadas automaticamente.
-context:
-  shared:
-    - docs/01-course-prd.md
-    - docs/02-market-research.md
-    - docs/03-learning-architecture.md
-  max_tokens_estimate: 120000
-`, name, language, runnerName)
+// jsonString safely encodes s as a JSON string literal (handles quotes, etc.).
+func jsonString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }
 
 func printHelp() {

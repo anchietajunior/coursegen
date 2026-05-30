@@ -52,7 +52,7 @@ Quando você usa o sistema em um curso, o **projeto do curso** tem esta forma
 
 ```
 course/
-├── coursegen.yml      # config da CLI
+├── coursegen.json     # config da CLI (JSON, zero dependências)
 ├── docs/              # ENTRADA: planejamento gerado pelas skills (00..06)
 ├── .coursegen/        # estado interno (state.json, logs, runs)
 └── output/            # SAÍDA: lessons/ exercises/ projects/ slides/ reviews/
@@ -95,7 +95,7 @@ O que ele faz, espelhando o padrão do Compozy:
 3. **Symlinka** (ou `--copy`) para o diretório do agente — ex.: `~/.claude/skills/`
    (Claude Code), `~/.cursor/skills-cursor/` (Cursor). Para agentes sem diretório
    de skills conhecido, deixa no store agnóstico e indica como apontá-los.
-4. Registra a escolha em `~/.config/coursegen/state.yml`.
+4. Registra a escolha em `~/.config/coursegen/state.json`.
 
 Depois, invoque pelo nome no agente, ex.: `/course-discovery`.
 
@@ -179,7 +179,7 @@ Não há um substantivo genérico "task" na linha de comando — o verbo é a op
 `./bin/coursegen` / `go run ./cmd/coursegen`):
 
 ```bash
-# Inicializa o projeto (uma vez): cria coursegen.yml, .coursegen/, output/
+# Inicializa o projeto (uma vez): cria coursegen.json, .coursegen/, output/
 coursegen init --name "Meu Curso" --runner claude
 
 # Confere o gate (precisa estar APROVADO)
@@ -225,11 +225,12 @@ as aulas de uma vez, evitando estouro de contexto e mistura entre módulos.
 Arquitetura completa, YAMLs, runners, modelo de estado e roadmap:
 [`DESIGN.md`](DESIGN.md).
 
-> **MVP implementado em Go** (`cmd/coursegen`, `internal/`): `init`, `doctor`,
-> `readiness check`, `list`, `generate lessons` (sequencial),
-> `tasks status`, `tasks retry failed`, `runs list/show`. Runners: `claude`,
-> `codex`, `gemini`, `cursor`, `opencode` (dirigidos por YAML) + `mock` para
-> testes sem custo. Binário único, sem runtime. A arquitetura completa e o
+> **MVP implementado em Go** (`cmd/coursegen`, `internal/`): `init`, `setup`,
+> `doctor`, `readiness check`, `list`, `generate lessons` (sequencial),
+> `status`, `retry failed`, `runs list/show`. Runners: `claude`,
+> `codex`, `gemini`, `cursor`, `opencode` (dirigidos por JSON) + `mock` para
+> testes sem custo. Binário único, sem runtime, **zero dependências**. A
+> arquitetura completa e o
 > roadmap (paralelismo, demais tasks) estão em [`DESIGN.md`](DESIGN.md).
 
 ---

@@ -39,7 +39,7 @@ fmt:
 clean:
 	rm -rf bin dist
 
-run: build ## Ex.: make run ARGS="tasks run generate-lessons --runner mock"
+run: build ## Ex.: make run ARGS="generate lessons --runner mock"
 	./bin/$(BINARY) $(ARGS)
 
 release: sync-skills ## Cross-compila binários estáticos para todas as plataformas em ./dist

@@ -13,27 +13,27 @@ import (
 	"time"
 )
 
-// Spec is the YAML-driven configuration of a CLI runner. The exact flags of
+// Spec is the JSON-driven configuration of a CLI runner. The exact flags of
 // each agent are version-dependent and live here ON PURPOSE, so a tool update
 // is a config edit, not a code change.
 type Spec struct {
-	Name        string   `yaml:"name"`
-	Type        string   `yaml:"type"`
-	Bin         string   `yaml:"bin"`
-	Healthcheck string   `yaml:"healthcheck"`
-	Args        []string `yaml:"args"`
-	KillSignal  string   `yaml:"kill_signal"`
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`
+	Bin         string   `json:"bin"`
+	Healthcheck string   `json:"healthcheck"`
+	Args        []string `json:"args"`
+	KillSignal  string   `json:"kill_signal"`
 
 	Prompt struct {
-		Via  string `yaml:"via"`  // stdin | arg | file
-		Flag string `yaml:"flag"` // optional flag preceding the prompt
-	} `yaml:"prompt"`
+		Via  string `json:"via"`  // stdin | arg | file
+		Flag string `json:"flag"` // optional flag preceding the prompt
+	} `json:"prompt"`
 
 	Output struct {
-		StripCodeFences bool `yaml:"strip_code_fences"`
-	} `yaml:"output"`
+		StripCodeFences bool `json:"strip_code_fences"`
+	} `json:"output"`
 
-	Env map[string]string `yaml:"env"`
+	Env map[string]string `json:"env"`
 }
 
 var envVarRe = regexp.MustCompile(`\$\{(\w+)\}`)

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -10,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/anchietajunior/coursegen/internal/assets"
 	"github.com/anchietajunior/coursegen/internal/config"
@@ -29,12 +28,12 @@ var agentSkillDir = map[string]string{
 	"cursor": ".cursor/skills-cursor",
 }
 
-// setupState is persisted at ~/.config/coursegen/state.yml.
+// setupState is persisted at ~/.config/coursegen/state.json.
 type setupState struct {
-	Agent           string   `yaml:"agent"`
-	InstalledSkills []string `yaml:"installed_skills"`
-	Scope           string   `yaml:"scope"`
-	InstalledAt     string   `yaml:"installed_at"`
+	Agent           string   `json:"agent"`
+	InstalledSkills []string `json:"installed_skills"`
+	Scope           string   `json:"scope"`
+	InstalledAt     string   `json:"installed_at"`
 }
 
 // cmdSetup installs the CourseGen planning skills into the chosen agent.
@@ -300,11 +299,12 @@ func saveSetupState(agent string, skills []string, scope string) error {
 		Agent: agent, InstalledSkills: skills, Scope: scope,
 		InstalledAt: time.Now().Format(time.RFC3339),
 	}
-	data, err := yaml.Marshal(st)
+	data, err := json.MarshalIndent(st, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "state.yml"), data, 0o644)
+	data = append(data, '\n')
+	return os.WriteFile(filepath.Join(dir, "state.json"), data, 0o644)
 }
 
 // --- helpers ----------------------------------------------------------------

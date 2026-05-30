@@ -2,17 +2,18 @@
 #
 # Como publicar (resumo):
 #   1. Crie um tap: repositório `anchietajunior/homebrew-tap`.
-#   2. Faça um release v0.1.0 (tag) no repo do coursegen.
+#   2. Faça um release vX.Y.Z (tag) no repo do coursegen.
 #   3. Calcule o sha256 do tarball e preencha abaixo.
 #   4. Copie este arquivo para o tap como Formula/coursegen.rb.
 #   5. Usuário: `brew install anchietajunior/tap/coursegen`.
 #
-# Os assets (skills de planejamento) já vêm commitados em internal/assets/skills,
-# então `go build` basta — não há download extra em runtime.
+# A CLI tem ZERO dependências externas (100% stdlib Go), então não há `vendor/`
+# nem download em runtime — `go build` compila offline na sandbox do Homebrew.
+# As skills de planejamento já vêm embarcadas em internal/assets/skills.
 class Coursegen < Formula
-  desc "Orquestra a produção de aulas de cursos com agentes de IA (uma aula por sessão isolada)"
+  desc "Orquestra a producao de aulas de cursos com agentes de IA (uma aula por sessao isolada)"
   homepage "https://github.com/anchietajunior/coursegen"
-  url "https://github.com/anchietajunior/coursegen/archive/refs/tags/v0.1.0.tar.gz"
+  url "https://github.com/anchietajunior/coursegen/archive/refs/tags/v0.1.1.tar.gz"
   sha256 "REPLACE_WITH_TARBALL_SHA256"
   license "MIT"
   head "https://github.com/anchietajunior/coursegen.git", branch: "main"
@@ -20,8 +21,8 @@ class Coursegen < Formula
   depends_on "go" => :build
 
   def install
-    ldflags = "-s -w"
-    system "go", "build", "-ldflags", ldflags, "-o", bin/"coursegen", "./cmd/coursegen"
+    system "go", "build", "-trimpath", "-ldflags", "-s -w",
+           "-o", bin/"coursegen", "./cmd/coursegen"
   end
 
   def caveats
@@ -38,6 +39,6 @@ class Coursegen < Formula
   end
 
   test do
-    assert_match "coursegen 0.1.0", shell_output("#{bin}/coursegen version")
+    assert_match "coursegen 0.1.1", shell_output("#{bin}/coursegen version")
   end
 end
