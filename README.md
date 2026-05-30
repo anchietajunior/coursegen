@@ -132,12 +132,18 @@ o status é exibido enquanto roda.
 ### Instalação
 
 ```bash
-# Homebrew (quando o tap estiver publicado):
+# Homebrew (macOS/Linux):
 brew install anchietajunior/tap/coursegen
+
+# Atualizar para a versão mais recente:
+brew upgrade coursegen
 
 # Em seguida, escolha seu agente e instale as skills de planejamento:
 coursegen setup
 ```
+
+> O CourseGen tem **zero dependências externas** (100% stdlib Go): o Homebrew
+> compila um binário único offline, sem baixar nada além do toolchain Go.
 
 `coursegen setup` (detalhado na [Parte 1](#instalando-as-skills)) pergunta qual
 agente você usa e copia as skills para o lugar certo — as skills vêm
