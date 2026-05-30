@@ -1,0 +1,13 @@
+# Build output
+/bin/
+/dist/
+coursegen
+
+# Estado de runtime gerado pela CLI nos projetos de curso
+.coursegen/
+**/.coursegen/
+output/
+examples/*/output/
+
+# OS
+.DS_Store
