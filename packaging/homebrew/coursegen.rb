@@ -13,7 +13,7 @@
 class Coursegen < Formula
   desc "Orquestra a producao de aulas de cursos com agentes de IA (uma aula por sessao isolada)"
   homepage "https://github.com/anchietajunior/coursegen"
-  url "https://github.com/anchietajunior/coursegen/archive/refs/tags/v0.1.1.tar.gz"
+  url "https://github.com/anchietajunior/coursegen/archive/refs/tags/v0.1.2.tar.gz"
   sha256 "REPLACE_WITH_TARBALL_SHA256"
   license "MIT"
   head "https://github.com/anchietajunior/coursegen.git", branch: "main"
@@ -39,6 +39,6 @@ class Coursegen < Formula
   end
 
   test do
-    assert_match "coursegen 0.1.1", shell_output("#{bin}/coursegen version")
+    assert_match "coursegen 0.1.2", shell_output("#{bin}/coursegen version")
   end
 end

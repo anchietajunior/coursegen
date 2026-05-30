@@ -27,7 +27,7 @@ import (
 )
 
 // Version of the CLI.
-const Version = "0.1.1"
+const Version = "0.1.2"
 
 // Run dispatches a command and returns a process exit code.
 func Run(args []string) int {
